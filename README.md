@@ -9,6 +9,12 @@ uv sync
 export OPENAI_API_KEY="your-key"
 ```
 
+## Data Layout
+
+- Put input files in `data/raw/`
+- Put scored outputs in `data/output/`
+- The entire `data/` folder is ignored by git for local-only datasets and results
+
 ## Input Format
 
 Your input file can be **JSON** (array of objects) or **CSV**. It must have `title` and `abstract` columns. CSV column names are case-insensitive.
@@ -16,7 +22,7 @@ Your input file can be **JSON** (array of objects) or **CSV**. It must have `tit
 ## CLI Usage
 
 ```bash
-uv run python scorer.py papers.json --topics "computational social science, NLP, misinformation" --output scored.csv
+uv run python scorer.py data/raw/papers.json --topics "computational social science, NLP, misinformation" --output data/output/scored.csv
 ```
 
 Options:

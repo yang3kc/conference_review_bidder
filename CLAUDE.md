@@ -17,7 +17,7 @@ Score conference paper relevance to a reviewer's research interests using LLM st
 
 ```bash
 uv sync                          # install deps
-uv run python scorer.py <json|csv> --topics "..." --output scored.csv   # CLI
+uv run python scorer.py data/raw/<json|csv> --topics "..." --output data/output/scored.csv   # CLI
 uv run streamlit run app.py      # web UI
 ```
 
@@ -25,5 +25,7 @@ uv run streamlit run app.py      # web UI
 
 - Python 3.12+, managed with `uv`
 - Default model: `gpt-4.1-mini`
+- Store local inputs in `data/raw/` and generated outputs in `data/output/`
+- `data/` is gitignored and intended for local-only datasets and results
 - Input JSON or CSV must have `title` and `abstract` columns (CSV columns are case-insensitive)
 - Score 0 indicates an API error — do not treat as a valid relevance score
