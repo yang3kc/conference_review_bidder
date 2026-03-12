@@ -1,0 +1,12 @@
+[project]
+name = "conference-review-bidder"
+version = "0.1.0"
+description = "Score conference paper relevance to your research interests using LLMs"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "openai>=1.78.1",
+    "tqdm>=4.67.1",
+    "pandas>=2.2.0",
+    "streamlit>=1.40.0",
+]
