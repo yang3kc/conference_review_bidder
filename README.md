@@ -47,6 +47,8 @@ Options:
 - `--max-workers N` — number of parallel API calls (default: 5)
 - `--model MODEL` — OpenAI model to use (default: gpt-4.1-mini)
 
+I tested with 20 workers and gpt-4.1-mini, took less than 3 minutes to score over 700 papers.
+
 ## Streamlit App
 
 ```bash
