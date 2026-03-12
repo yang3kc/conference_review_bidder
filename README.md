@@ -9,14 +9,14 @@ uv sync
 export OPENAI_API_KEY="your-key"
 ```
 
-## CSV Format
+## Input Format
 
-Your input CSV must have `title` and `abstract` columns (case-insensitive).
+Your input file can be **JSON** (array of objects) or **CSV**. It must have `title` and `abstract` columns. CSV column names are case-insensitive.
 
 ## CLI Usage
 
 ```bash
-uv run python scorer.py papers.csv --topics "computational social science, NLP, misinformation" --output scored.csv
+uv run python scorer.py papers.json --topics "computational social science, NLP, misinformation" --output scored.csv
 ```
 
 Options:
@@ -29,4 +29,4 @@ Options:
 uv run streamlit run app.py
 ```
 
-Upload a CSV, enter your research interests, and click "Score Papers". Results can be filtered by score and downloaded.
+Upload a JSON or CSV file, enter your research interests, and click "Score Papers". Results can be filtered by score and downloaded.

@@ -41,11 +41,14 @@ Rate the relevance of this paper to the reviewer's research interests."""
 
 
 def load_papers(path: str) -> pd.DataFrame:
-    df = pd.read_csv(path)
-    df.columns = df.columns.str.lower().str.strip()
+    if path.endswith(".json"):
+        df = pd.read_json(path)
+    else:
+        df = pd.read_csv(path)
+        df.columns = df.columns.str.lower().str.strip()
     if "title" not in df.columns or "abstract" not in df.columns:
         raise ValueError(
-            f"CSV must have 'title' and 'abstract' columns. "
+            f"Input file must have 'title' and 'abstract' columns. "
             f"Found columns: {list(df.columns)}"
         )
     return df
@@ -104,7 +107,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Score conference papers for review bidding"
     )
-    parser.add_argument("csv_path", help="Path to CSV with title and abstract columns")
+    parser.add_argument("input_path", help="Path to JSON or CSV file with title and abstract columns")
     parser.add_argument(
         "--topics", required=True, help="Your research interests/topics"
     )
@@ -119,7 +122,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    df = load_papers(args.csv_path)
+    df = load_papers(args.input_path)
     print(f"Loaded {len(df)} papers")
     results = score_papers(
         df, args.topics, max_workers=args.max_workers, model=args.model

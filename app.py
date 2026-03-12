@@ -15,7 +15,7 @@ with st.sidebar:
         "OpenAI API Key (optional, falls back to env var)", type="password"
     )
 
-    uploaded_file = st.file_uploader("Upload paper CSV", type=["csv"])
+    uploaded_file = st.file_uploader("Upload paper list (JSON or CSV)", type=["json", "csv"])
 
     topics = st.text_area(
         "Your Research Interests",
@@ -36,11 +36,14 @@ if score_button:
     if api_key:
         os.environ["OPENAI_API_KEY"] = api_key
 
-    df = pd.read_csv(uploaded_file)
-    df.columns = df.columns.str.lower().str.strip()
+    if uploaded_file.name.endswith(".json"):
+        df = pd.read_json(uploaded_file)
+    else:
+        df = pd.read_csv(uploaded_file)
+        df.columns = df.columns.str.lower().str.strip()
 
     if "title" not in df.columns or "abstract" not in df.columns:
-        st.error("CSV must have 'title' and 'abstract' columns")
+        st.error("Input file must have 'title' and 'abstract' columns")
     else:
         with st.spinner(f"Scoring {len(df)} papers..."):
             st.session_state.results_df = score_papers(

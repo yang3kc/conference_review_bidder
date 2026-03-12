@@ -11,13 +11,13 @@ Score conference paper relevance to a reviewer's research interests using LLM st
 
 - **Structured output:** Uses `client.responses.parse()` with `text_format=RelevanceScore` — not chat completions. Keep this pattern when adding new LLM calls.
 - **Threading:** Uses `thread_map` from `tqdm.contrib.concurrent` with a single shared `OpenAI()` client (thread-safe). Do not switch to asyncio.
-- **Column normalization:** CSV columns are lowercased and stripped on load. Always reference columns in lowercase.
+- **Column normalization:** CSV columns are lowercased and stripped on load. JSON keys are used as-is. Always reference columns in lowercase.
 
 ## Development
 
 ```bash
 uv sync                          # install deps
-uv run python scorer.py <csv> --topics "..." --output scored.csv   # CLI
+uv run python scorer.py <json|csv> --topics "..." --output scored.csv   # CLI
 uv run streamlit run app.py      # web UI
 ```
 
@@ -25,5 +25,5 @@ uv run streamlit run app.py      # web UI
 
 - Python 3.12+, managed with `uv`
 - Default model: `gpt-4.1-mini`
-- Input CSV must have `title` and `abstract` columns (case-insensitive)
+- Input JSON or CSV must have `title` and `abstract` columns (CSV columns are case-insensitive)
 - Score 0 indicates an API error — do not treat as a valid relevance score
