@@ -25,6 +25,8 @@ export OPENAI_API_KEY="your-key"
 
 Your input file can be **JSON** (array of objects) or **CSV**. It must have `title` and `abstract` columns. CSV column names are case-insensitive.
 
+If your paper list is in EasyChair, one practical option is to export it with Easy Scraper and then feed the exported CSV or JSON into this tool. See the Easy Scraper docs: https://docs.easyscraper.com/
+
 ## Scoring
 
 Scores use a `1-5` relevance scale:
