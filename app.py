@@ -1,79 +1,160 @@
-import os
-
 import pandas as pd
 import streamlit as st
 
-from scorer import load_papers, score_papers
+REQUIRED_COLUMNS = {"title", "abstract", "score", "explanation"}
+INTERNAL_COLUMNS = ["__row_id", "__original_order"]
+PREFERRED_COLUMN_ORDER = [
+    "user_rank",
+    "score",
+    "title",
+    "explanation",
+    "user_notes",
+    "abstract",
+]
+
+
+def validate_scored_df(df: pd.DataFrame) -> str | None:
+    missing_columns = sorted(REQUIRED_COLUMNS - set(df.columns))
+    if missing_columns:
+        return (
+            "Input file must be a scored CSV containing: "
+            "title, abstract, score, explanation. "
+            f"Found columns: {list(df.columns)}"
+        )
+    return None
+
+
+def initialize_review_df(df: pd.DataFrame) -> pd.DataFrame:
+    review_df = df.copy()
+    review_df["__row_id"] = range(len(review_df))
+    review_df["__original_order"] = range(len(review_df))
+    if "user_rank" not in review_df.columns:
+        review_df["user_rank"] = range(1, len(review_df) + 1)
+    if "user_notes" not in review_df.columns:
+        review_df["user_notes"] = ""
+    return review_df
+
+
+def sort_review_df(df: pd.DataFrame) -> pd.DataFrame:
+    working_df = df.copy()
+    working_df["__rank_sort"] = pd.to_numeric(
+        working_df["user_rank"], errors="coerce"
+    )
+    working_df["__score_sort"] = pd.to_numeric(working_df["score"], errors="coerce")
+    working_df["__rank_missing"] = working_df["__rank_sort"].isna()
+    working_df = working_df.sort_values(
+        by=["__rank_missing", "__rank_sort", "__score_sort", "__original_order"],
+        ascending=[True, True, False, True],
+        kind="stable",
+    )
+    return working_df.drop(
+        columns=["__rank_sort", "__score_sort", "__rank_missing"]
+    )
+
+
+def build_editor_df(df: pd.DataFrame) -> pd.DataFrame:
+    sorted_df = sort_review_df(df)
+    ordered_columns = [col for col in PREFERRED_COLUMN_ORDER if col in sorted_df.columns]
+    remaining_columns = [
+        col
+        for col in sorted_df.columns
+        if col not in ordered_columns and col not in INTERNAL_COLUMNS
+    ]
+    editor_columns = ["__row_id", *ordered_columns, *remaining_columns]
+    return sorted_df[editor_columns].set_index("__row_id")
+
+
+def sync_editor_changes(
+    review_df: pd.DataFrame, edited_df: pd.DataFrame
+) -> pd.DataFrame:
+    updated_df = review_df.set_index("__row_id").copy()
+    updated_df.loc[edited_df.index, "user_rank"] = edited_df["user_rank"]
+    updated_df.loc[edited_df.index, "user_notes"] = edited_df["user_notes"]
+    return updated_df.reset_index()
+
+
+def load_review_df(uploaded_file) -> tuple[pd.DataFrame | None, str | None]:
+    df = pd.read_csv(uploaded_file)
+    validation_error = validate_scored_df(df)
+    if validation_error:
+        return None, validation_error
+    return initialize_review_df(df), None
+
 
 st.set_page_config(page_title="Conference Review Bidder", layout="wide")
 st.title("Conference Review Bidder")
+st.caption(
+    "Score papers from the CLI first, then upload the scored CSV here to assign "
+    "your review ranking."
+)
 
-with st.sidebar:
-    st.header("Settings")
-
-    api_key = st.text_input(
-        "OpenAI API Key (optional, falls back to env var)", type="password"
-    )
-
-    uploaded_file = st.file_uploader("Upload paper list (JSON or CSV)", type=["json", "csv"])
-
-    topics = st.text_area(
-        "Your Research Interests",
-        placeholder="e.g., computational social science, NLP, social media analysis, misinformation...",
-        height=150,
-    )
-
-    max_workers = st.slider("Parallel API calls", min_value=1, max_value=10, value=5)
-
-    score_button = st.button(
-        "Score Papers", type="primary", disabled=not (uploaded_file and topics)
-    )
+uploaded_file = st.file_uploader("Upload scored CSV", type=["csv"])
 
 if "results_df" not in st.session_state:
     st.session_state.results_df = None
+if "loaded_file_key" not in st.session_state:
+    st.session_state.loaded_file_key = None
 
-if score_button:
-    if api_key:
-        os.environ["OPENAI_API_KEY"] = api_key
-
-    if uploaded_file.name.endswith(".json"):
-        df = pd.read_json(uploaded_file)
-    else:
-        df = pd.read_csv(uploaded_file)
-        df.columns = df.columns.str.lower().str.strip()
-
-    if "title" not in df.columns or "abstract" not in df.columns:
-        st.error("Input file must have 'title' and 'abstract' columns")
-    else:
-        with st.spinner(f"Scoring {len(df)} papers..."):
-            st.session_state.results_df = score_papers(
-                df, topics, max_workers=max_workers
-            )
-        st.success(f"Scored {len(df)} papers!")
-
-if st.session_state.results_df is not None:
-    results = st.session_state.results_df
-
-    st.subheader("Score Distribution")
-    score_counts = results["score"].value_counts().sort_index()
-    st.bar_chart(score_counts)
-
-    min_score = st.slider(
-        "Minimum relevance score", min_value=0, max_value=5, value=0
+if uploaded_file is None:
+    st.info(
+        "Run the CLI to generate a scored CSV in data/output/, then upload it here "
+        "to rank papers."
     )
-    filtered = results[results["score"] >= min_score]
+    st.stop()
 
-    st.subheader(f"Papers ({len(filtered)} shown)")
-    st.dataframe(
-        filtered,
-        use_container_width=True,
-        hide_index=True,
-    )
+file_key = f"{uploaded_file.name}:{uploaded_file.size}"
+if st.session_state.loaded_file_key != file_key:
+    review_df, validation_error = load_review_df(uploaded_file)
+    if validation_error:
+        st.session_state.results_df = None
+        st.session_state.loaded_file_key = None
+        st.error(validation_error)
+        st.stop()
+    st.session_state.results_df = review_df
+    st.session_state.loaded_file_key = file_key
+    st.success(f"Loaded {len(review_df)} scored papers")
 
-    csv_data = filtered.to_csv(index=False)
-    st.download_button(
-        label="Download filtered results as CSV",
-        data=csv_data,
-        file_name="scored_papers.csv",
-        mime="text/csv",
-    )
+results_df = st.session_state.results_df
+score_series = pd.to_numeric(results_df["score"], errors="coerce")
+score_counts = score_series.fillna(-1).value_counts().sort_index()
+
+summary_col1, summary_col2, summary_col3 = st.columns(3)
+summary_col1.metric("Papers", len(results_df))
+summary_col2.metric("Scored Papers", int(score_series.notna().sum()))
+summary_col3.metric("Score 0 Errors", int((score_series == 0).sum()))
+
+st.subheader("Score Distribution")
+st.bar_chart(score_counts)
+
+st.subheader("Rank Papers")
+st.caption(
+    "Edit only user_rank and user_notes. The downloaded CSV will keep the scored "
+    "fields and append your ranking columns."
+)
+
+editor_df = build_editor_df(results_df)
+edited_df = st.data_editor(
+    editor_df,
+    key=f"review_editor_{file_key}",
+    use_container_width=True,
+    hide_index=True,
+    disabled=[col for col in editor_df.columns if col not in {"user_rank", "user_notes"}],
+    column_config={
+        "user_rank": st.column_config.NumberColumn("User Rank", step=1),
+        "score": st.column_config.NumberColumn("Score"),
+        "title": st.column_config.TextColumn("Title", width="medium"),
+        "explanation": st.column_config.TextColumn("Explanation", width="large"),
+        "user_notes": st.column_config.TextColumn("User Notes", width="large"),
+        "abstract": st.column_config.TextColumn("Abstract", width="large"),
+    },
+)
+
+st.session_state.results_df = sync_editor_changes(results_df, edited_df)
+download_df = sort_review_df(st.session_state.results_df).drop(columns=INTERNAL_COLUMNS)
+
+st.download_button(
+    label="Download ranked CSV",
+    data=download_df.to_csv(index=False),
+    file_name="ranked_scored_papers.csv",
+    mime="text/csv",
+)
