@@ -19,6 +19,18 @@ export OPENAI_API_KEY="your-key"
 
 Your input file can be **JSON** (array of objects) or **CSV**. It must have `title` and `abstract` columns. CSV column names are case-insensitive.
 
+## Scoring
+
+Scores use a `1-5` relevance scale:
+
+- `1` — not relevant at all
+- `2` — slightly relevant
+- `3` — moderately relevant
+- `4` — very relevant
+- `5` — core expertise
+
+If a paper receives `0`, that indicates an API error during scoring rather than a valid relevance score.
+
 ## CLI Usage
 
 ```bash
